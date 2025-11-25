@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://opnamebnm-l9n1.onrender.com";
 const AuthContext = createContext();
 
 // ⏰ Batas idle (1 jam)
