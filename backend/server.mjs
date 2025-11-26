@@ -20,7 +20,7 @@ const PORT = process.env.PORT || 3001;
 
 // 3. Middleware
 const allowedOrigins = [
-  "https://opname-bnm-three.vercel.app/",
+  "https://opname-bnm-kappa.vercel.app/",
   "http://localhost:3000", // Next.js dev
   "http://127.0.0.1:3000",
 ];
