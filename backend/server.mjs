@@ -1487,94 +1487,107 @@ app.get("/api/pic-list", async (req, res) => {
 });
 
 
+function parseRABTemplate(rawRows) {
+  let headerIdx = -1;
+  let headMap = {};
+
+  // 1. DETEKSI HEADER SECARA DINAMIS
+  for (let i = 0; i < rawRows.length; i++) {
+    const row = rawRows[i].map((v) => (v || "").toUpperCase().trim());
+    if (
+      row.includes("JENIS PEKERJAAN") &&
+      (row.includes("SATUAN") || row.includes("SAT")) &&
+      (row.includes("VOL") || row.includes("VOLUME"))
+    ) {
+      headerIdx = i;
+      headMap = row.reduce((acc, v, idx) => {
+        acc[v] = idx;
+        return acc;
+      }, {});
+      break;
+    }
+  }
+
+  if (headerIdx === -1) {
+    throw new Error("HEADER RAB tidak ditemukan");
+  }
+
+  const colJenis = headMap["JENIS PEKERJAAN"];
+  const colSat = headMap["SATUAN"] ?? headMap["SAT"];
+  const colVol = headMap["VOL"] ?? headMap["VOLUME"];
+  const colMat = headMap["MATERIAL"];
+  const colUpah = headMap["UPAH"];
+
+  let kategori = "";
+  let list = [];
+
+  // 2. LOOP ALL ROWS AFTER HEADER
+  for (let i = headerIdx + 1; i < rawRows.length; i++) {
+    const r = rawRows[i];
+    const jenis = (r[colJenis] || "").trim();
+
+    if (!jenis) continue;
+
+    const satuan = (r[colSat] || "").trim();
+    const vol = r[colVol];
+    const material = r[colMat];
+    const upah = r[colUpah];
+
+    // 3. DETEKSI KATEGORI
+    if (
+      jenis === jenis.toUpperCase() &&
+      !satuan &&
+      !vol &&
+      !material &&
+      !upah
+    ) {
+      kategori = jenis;
+      continue;
+    }
+
+    // 4. ITEM
+    list.push({
+      kategori,
+      jenis_pekerjaan: jenis,
+      satuan,
+      volume: parseFloat(String(vol).replace(",", ".")) || 0,
+      harga_material: Number(String(material).replace(/[^0-9]/g, "")) || 0,
+      harga_upah: Number(String(upah).replace(/[^0-9]/g, "")) || 0,
+    });
+  }
+
+  return list;
+}
+
+
 // === ENDPOINT BARU: Ambil Template RAB SIPIL / ME ===
 app.get("/api/rab-template", async (req, res) => {
   try {
-    const { lingkup } = req.query;
+    const lingkup = String(req.query.lingkup || "").toUpperCase();
 
     const sheetId =
-      lingkup?.toUpperCase() === "SIPIL"
+      lingkup === "SIPIL"
         ? "1Jf_qTHOMpmyLWp9zR_5CiwjyzWWtD8cH99qt4kJvLOw"
-        : "1oQfZkWSP-TWQmQMY-gM1qVcLP_i47REBmJj1IfDNzkg";
+        : lingkup === "ME"
+        ? "1oQfZkWSP-TWQmQMY-gM1qVcLP_i47REBmJj1IfDNzkg"
+        : null;
 
-    const doc = new GoogleSpreadsheet(sheetId, serviceAccountAuth);
+    if (!sheetId)
+      return res.status(400).json({ message: "Lingkup invalid" });
+
+    const doc = new GoogleSpreadsheet(sheetId);
+    await doc.useApiKey(process.env.GOOGLE_API_KEY);
     await doc.loadInfo();
 
     const sheet = doc.sheetsByIndex[0];
-    const raw = await sheet.getCells({
-      returnEmpty: true,
-    });
+    const rows = await sheet.getRows({ includeEmpty: true });
+    const display = rows.map((r) => r._rawData);
 
-    // data sebagai matrix
-    const rowCount = sheet.rowCount;
-    const colCount = sheet.columnCount;
-
-    const matrix = [];
-    for (let r = 0; r < rowCount; r++) {
-      const row = [];
-      for (let c = 0; c < colCount; c++) {
-        const cell = raw[r * colCount + c];
-        row.push(cell?.value ? String(cell.value).trim() : "");
-      }
-      matrix.push(row);
-    }
-
-    // ========== CARI POSISI HEADER DINAMIS ==========
-    let idxJenis = -1, idxSatuan = -1, idxVol = -1, idxMaterial = -1, idxUpah = -1;
-
-    for (let r = 0; r < matrix.length; r++) {
-      for (let c = 0; c < matrix[r].length; c++) {
-        const v = matrix[r][c].toLowerCase();
-
-        if (v.includes("jenis pekerjaan") || v === "jenis pekerjaan") idxJenis = c;
-        if (v === "sat" || v === "satuan") idxSatuan = c;
-        if (v === "vol" || v === "volume" || v.includes("vol")) idxVol = c;
-        if (v.includes("material")) idxMaterial = c;
-        if (v.includes("upah")) idxUpah = c;
-      }
-    }
-
-    if (idxJenis === -1 || idxSatuan === -1 || idxVol === -1 || idxMaterial === -1 || idxUpah === -1) {
-      console.log("Header tidak ditemukan, sisakan JSON kosong.");
-      return res.status(200).json([]);
-    }
-
-    // ========== PARSING DATA ==========
-    let currentCategory = "";
-    const output = [];
-
-    for (let r = 0; r < matrix.length; r++) {
-      const jenis = matrix[r][idxJenis];
-      const satuan = matrix[r][idxSatuan];
-      const vol = matrix[r][idxVol];
-      const material = matrix[r][idxMaterial];
-      const upah = matrix[r][idxUpah];
-
-      if (!jenis) continue; // baris kosong
-
-      // ====== kategori: jenis ada tapi satuan kosong
-      if (jenis && (!satuan || satuan === "")) {
-        currentCategory = jenis.toUpperCase();
-        continue;
-      }
-
-      // ====== item pekerjaan valid
-      if (jenis && satuan) {
-        output.push({
-          kategori: currentCategory,
-          jenis: jenis,
-          satuan: satuan,
-          vol: vol || "",
-          harga_material: material || "",
-          harga_upah: upah || "",
-        });
-      }
-    }
-
-    return res.status(200).json(output);
-  } catch (e) {
-    console.error("RAB Template Error:", e);
-    return res.status(200).json([]);
+    const parsed = parseRABTemplate(display);
+    return res.json(parsed);
+  } catch (err) {
+    console.error("Gagal load template RAB", err);
+    res.status(500).json({ message: err.message });
   }
 });
 

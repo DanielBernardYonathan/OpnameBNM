@@ -174,18 +174,19 @@ const withLingkup = lk ? base + `&lingkup=${encodeURIComponent(lk)}` : null;
     }
   }, [selectedStore, selectedUlok, selectedLingkup, user]);
 
-  // LOAD TEMPLATE RAB CIVIL / ME
+  // Saat lingkup berubah → ambil template RAB
   useEffect(() => {
     if (!selectedLingkup) return;
 
     fetch(`${API_BASE_URL}/api/rab-template?lingkup=${selectedLingkup}`)
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         console.log("Template loaded:", data);
         setTemplateItems(data);
       })
-      .catch(err => console.error("Gagal load template:", err));
+      .catch((err) => console.error("Gagal load template:", err));
   }, [selectedLingkup]);
+
 
   const handleAddNewWork = () => {
     if (!newKategori || !newJenis || !newVolRab) {
@@ -788,19 +789,16 @@ const withLingkup = lk ? base + `&lingkup=${encodeURIComponent(lk)}` : null;
               value={newKategori}
               onChange={(e) => {
                 setNewKategori(e.target.value);
-                setNewJenis("");
+                setNewJenis(""); // reset jenis saat ganti kategori
               }}
-              style={{ marginBottom: "10px" }}
             >
               <option value="">-- Pilih Kategori --</option>
-              {templateItems
-                .map((i) => i.kategori)
-                .filter((v, i, a) => a.indexOf(v) === i)
-                .map((kat) => (
-                  <option key={kat} value={kat}>
-                    {kat}
-                  </option>
-                ))}
+
+              {[...new Set(templateItems.map((i) => i.kategori))].map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
             </select>
 
             {/* JENIS PEKERJAAN */}
@@ -810,17 +808,11 @@ const withLingkup = lk ? base + `&lingkup=${encodeURIComponent(lk)}` : null;
               onChange={(e) => {
                 const value = e.target.value;
                 setNewJenis(value);
-
-                const row = templateItems.find((i) => i.jenis_pekerjaan === value);
-                if (row) {
-                  setNewSatuan(row.satuan);
-                  setNewHargaMaterial(row.harga_material);
-                  setNewHargaUpah(row.harga_upah);
-                }
+                onSelectJenis(value); // auto fill material/upah/satuan
               }}
-              style={{ marginBottom: "10px" }}
             >
               <option value="">-- Pilih Jenis Pekerjaan --</option>
+
               {templateItems
                 .filter((i) => i.kategori === newKategori)
                 .map((i) => (
@@ -829,6 +821,7 @@ const withLingkup = lk ? base + `&lingkup=${encodeURIComponent(lk)}` : null;
                   </option>
                 ))}
             </select>
+
 
             {/* SAAT PILIH JENIS → TAMPILKAN DETAIL */}
             {newJenis && (
