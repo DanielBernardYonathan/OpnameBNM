@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "https://opnamebnm-l9n1.onrender.com";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 const AuthContext = createContext();
 
 // ⏰ Batas idle (1 jam)
@@ -84,14 +84,14 @@ export const AuthProvider = ({ children }) => {
         now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" })
       );
       const hour = wibTime.getHours();
-      if (hour < 6 || hour >= 24) {
+      if (hour < 6 || hour >= 18) {
         const currentTime = wibTime.toLocaleTimeString("id-ID", {
           hour: "2-digit",
           minute: "2-digit",
         });
         return {
           success: false,
-          message: `Sesi Anda telah berakhir.\nLogin hanya 06.00–18.00 WIB.\nSekarang pukul ${currentTime} WIB.`,
+          message: `Sesi Anda telah berakhir.\nLogin hanya 06.00–181.00 WIB.\nSekarang pukul ${currentTime} WIB.`,
         };
       }
 
