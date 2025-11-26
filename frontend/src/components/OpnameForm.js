@@ -43,6 +43,17 @@ const OpnameForm = ({ onBack, selectedStore }) => {
   const [selectedUlok, setSelectedUlok] = useState(null);
   const [selectedLingkup, setSelectedLingkup] = useState(null);
 
+  // --- TAMBAH PEKERJAAN ---
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [templateItems, setTemplateItems] = useState([]);
+
+  const [newKategori, setNewKategori] = useState("");
+  const [newJenis, setNewJenis] = useState("");
+  const [newSatuan, setNewSatuan] = useState("");
+  const [newHargaMaterial, setNewHargaMaterial] = useState("");
+  const [newHargaUpah, setNewHargaUpah] = useState("");
+  const [newVolRab, setNewVolRab] = useState("");
+
   useEffect(() => {
     if (selectedStore?.kode_toko) {
       setLoading(true);
@@ -163,7 +174,50 @@ const withLingkup = lk ? base + `&lingkup=${encodeURIComponent(lk)}` : null;
     }
   }, [selectedStore, selectedUlok, selectedLingkup, user]);
 
-  
+  // LOAD TEMPLATE RAB CIVIL / ME
+  useEffect(() => {
+    if (!selectedLingkup) return;
+
+    fetch(`${API_BASE_URL}/api/rab-template?lingkup=${selectedLingkup}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("Template loaded:", data);
+        setTemplateItems(data);
+      })
+      .catch(err => console.error("Gagal load template:", err));
+  }, [selectedLingkup]);
+
+  const handleAddNewWork = () => {
+    if (!newKategori || !newJenis || !newVolRab) {
+      alert("Harap isi semua field!");
+      return;
+    }
+
+    const newItem = {
+      id: opnameItems.length + 1,
+      kategori_pekerjaan: newKategori,
+      jenis_pekerjaan: newJenis,
+      vol_rab: newVolRab,
+      satuan: newSatuan,
+      harga_material: Number(newHargaMaterial),
+      harga_upah: Number(newHargaUpah),
+      volume_akhir: "",
+      selisih: "0",
+      total_harga: 0,
+      isSubmitted: false,
+      approval_status: null,
+      lingkup_pekerjaan: selectedLingkup,
+    };
+
+    setOpnameItems([...opnameItems, newItem]);
+
+    // reset
+    setShowAddForm(false);
+    setNewKategori("");
+    setNewJenis("");
+    setNewVolRab("");
+  };
+
 
   const handleVolumeAkhirChange = (id, value) => {
     setOpnameItems((prevItems) =>
@@ -806,6 +860,107 @@ const withLingkup = lk ? base + `&lingkup=${encodeURIComponent(lk)}` : null;
             </strong>
           </div>
         </div>
+
+        <div style={{ marginTop: "30px" }}>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            {showAddForm ? "Tutup" : "+ Tambah Pekerjaan"}
+          </button>
+        </div>
+
+        {showAddForm && (
+  <div
+    style={{
+      marginTop: "20px",
+      padding: "16px",
+      border: "1px solid #ddd",
+      borderRadius: "10px",
+      background: "#f9f9f9"
+    }}
+  >
+    <h4 style={{ marginBottom: "12px", color: "var(--alfamart-red)" }}>
+      Tambah Pekerjaan Baru
+    </h4>
+
+    {/* KATEGORI */}
+    <select
+      className="form-select"
+      value={newKategori}
+      onChange={(e) => {
+        setNewKategori(e.target.value);
+        setNewJenis("");
+      }}
+      style={{ marginBottom: "10px" }}
+    >
+      <option value="">-- Pilih Kategori --</option>
+      {templateItems
+        .map((i) => i.kategori)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .map((kat) => (
+          <option key={kat} value={kat}>
+            {kat}
+          </option>
+        ))}
+    </select>
+
+    {/* JENIS PEKERJAAN */}
+    <select
+      className="form-select"
+      value={newJenis}
+      onChange={(e) => {
+        const value = e.target.value;
+        setNewJenis(value);
+
+        const row = templateItems.find((i) => i.jenis_pekerjaan === value);
+        if (row) {
+          setNewSatuan(row.satuan);
+          setNewHargaMaterial(row.harga_material);
+          setNewHargaUpah(row.harga_upah);
+        }
+      }}
+      style={{ marginBottom: "10px" }}
+    >
+      <option value="">-- Pilih Jenis Pekerjaan --</option>
+      {templateItems
+        .filter((i) => i.kategori === newKategori)
+        .map((i) => (
+          <option key={i.jenis_pekerjaan} value={i.jenis_pekerjaan}>
+            {i.jenis_pekerjaan}
+          </option>
+        ))}
+    </select>
+
+    {/* SAAT PILIH JENIS → TAMPILKAN DETAIL */}
+    {newJenis && (
+      <>
+        <div>Satuan: <strong>{newSatuan}</strong></div>
+        <div>Harga Material: <strong>{formatRupiah(newHargaMaterial)}</strong></div>
+        <div>Harga Upah: <strong>{formatRupiah(newHargaUpah)}</strong></div>
+
+        <input
+          type="number"
+          className="form-input"
+          placeholder="Volume RAB"
+          value={newVolRab}
+          onChange={(e) => setNewVolRab(e.target.value)}
+          style={{ marginTop: "10px", width: "200px" }}
+        />
+
+        <button
+          className="btn btn-success"
+          style={{ marginTop: "15px" }}
+          onClick={handleAddNewWork}
+        >
+          Tambahkan ke Daftar
+        </button>
+      </>
+    )}
+  </div>
+)}
+
+
       </div>
     </div>
   );

@@ -1487,6 +1487,47 @@ app.get("/api/pic-list", async (req, res) => {
 });
 
 
+// === ENDPOINT BARU: Ambil Template RAB SIPIL / ME ===
+app.get("/api/rab-template", async (req, res) => {
+  try {
+    const { lingkup } = req.query;
+    if (!lingkup)
+      return res.status(400).json({ message: "Lingkup (SIPIL/ME) wajib" });
+
+    // ID SHEET SIPIL & ME
+    const CIVIL_ID = "1Jf_qTHOMpmyLWp9zR_5CiwjyzWWtD8cH99qt4kJvLOw";
+    const ME_ID    = "1oQfZkWSP-TWQmQMY-gM1qVcLP_i47REBmJj1IfDNzkg";
+
+    const targetId =
+      lingkup.toUpperCase() === "SIPIL" ? CIVIL_ID : ME_ID;
+
+    const service = new JWT({
+      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"]
+    });
+
+    const tempDoc = new GoogleSpreadsheet(targetId, service);
+    await tempDoc.loadInfo();
+    const sheet = tempDoc.sheetsByIndex[0];
+    const rows = await sheet.getRows();
+
+    const result = rows.map(r => ({
+      kategori: r.get("Kategori") || "",
+      jenis_pekerjaan: r.get("Jenis Pekerjaan") || "",
+      satuan: r.get("Satuan") || "",
+      harga_material: r.get("Material") || "",
+      harga_upah: r.get("Upah") || ""
+    }));
+
+    res.status(200).json(result);
+  } catch (e) {
+    console.error("Gagal load template RAB:", e);
+    res.status(500).json({ message: "Gagal load template RAB" });
+  }
+});
+
+
 // 6. Menjalankan server
 // ✅ Route untuk uptime monitor (UptimeRobot)
 app.get("/health", (req, res) => {
