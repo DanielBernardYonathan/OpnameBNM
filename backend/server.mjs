@@ -1491,39 +1491,90 @@ app.get("/api/pic-list", async (req, res) => {
 app.get("/api/rab-template", async (req, res) => {
   try {
     const { lingkup } = req.query;
-    if (!lingkup)
-      return res.status(400).json({ message: "Lingkup (SIPIL/ME) wajib" });
 
-    // ID SHEET SIPIL & ME
-    const CIVIL_ID = "1Jf_qTHOMpmyLWp9zR_5CiwjyzWWtD8cH99qt4kJvLOw";
-    const ME_ID    = "1oQfZkWSP-TWQmQMY-gM1qVcLP_i47REBmJj1IfDNzkg";
+    const sheetId =
+      lingkup?.toUpperCase() === "SIPIL"
+        ? "1Jf_qTHOMpmyLWp9zR_5CiwjyzWWtD8cH99qt4kJvLOw"
+        : "1oQfZkWSP-TWQmQMY-gM1qVcLP_i47REBmJj1IfDNzkg";
 
-    const targetId =
-      lingkup.toUpperCase() === "SIPIL" ? CIVIL_ID : ME_ID;
+    const doc = new GoogleSpreadsheet(sheetId, serviceAccountAuth);
+    await doc.loadInfo();
 
-    const service = new JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"]
+    const sheet = doc.sheetsByIndex[0];
+    const raw = await sheet.getCells({
+      returnEmpty: true,
     });
 
-    const tempDoc = new GoogleSpreadsheet(targetId, service);
-    await tempDoc.loadInfo();
-    const sheet = tempDoc.sheetsByIndex[0];
-    const rows = await sheet.getRows();
+    // data sebagai matrix
+    const rowCount = sheet.rowCount;
+    const colCount = sheet.columnCount;
 
-    const result = rows.map(r => ({
-      kategori: r.get("Kategori") || "",
-      jenis_pekerjaan: r.get("Jenis Pekerjaan") || "",
-      satuan: r.get("Satuan") || "",
-      harga_material: r.get("Material") || "",
-      harga_upah: r.get("Upah") || ""
-    }));
+    const matrix = [];
+    for (let r = 0; r < rowCount; r++) {
+      const row = [];
+      for (let c = 0; c < colCount; c++) {
+        const cell = raw[r * colCount + c];
+        row.push(cell?.value ? String(cell.value).trim() : "");
+      }
+      matrix.push(row);
+    }
 
-    res.status(200).json(result);
+    // ========== CARI POSISI HEADER DINAMIS ==========
+    let idxJenis = -1, idxSatuan = -1, idxVol = -1, idxMaterial = -1, idxUpah = -1;
+
+    for (let r = 0; r < matrix.length; r++) {
+      for (let c = 0; c < matrix[r].length; c++) {
+        const v = matrix[r][c].toLowerCase();
+
+        if (v.includes("jenis pekerjaan") || v === "jenis pekerjaan") idxJenis = c;
+        if (v === "sat" || v === "satuan") idxSatuan = c;
+        if (v === "vol" || v === "volume" || v.includes("vol")) idxVol = c;
+        if (v.includes("material")) idxMaterial = c;
+        if (v.includes("upah")) idxUpah = c;
+      }
+    }
+
+    if (idxJenis === -1 || idxSatuan === -1 || idxVol === -1 || idxMaterial === -1 || idxUpah === -1) {
+      console.log("Header tidak ditemukan, sisakan JSON kosong.");
+      return res.status(200).json([]);
+    }
+
+    // ========== PARSING DATA ==========
+    let currentCategory = "";
+    const output = [];
+
+    for (let r = 0; r < matrix.length; r++) {
+      const jenis = matrix[r][idxJenis];
+      const satuan = matrix[r][idxSatuan];
+      const vol = matrix[r][idxVol];
+      const material = matrix[r][idxMaterial];
+      const upah = matrix[r][idxUpah];
+
+      if (!jenis) continue; // baris kosong
+
+      // ====== kategori: jenis ada tapi satuan kosong
+      if (jenis && (!satuan || satuan === "")) {
+        currentCategory = jenis.toUpperCase();
+        continue;
+      }
+
+      // ====== item pekerjaan valid
+      if (jenis && satuan) {
+        output.push({
+          kategori: currentCategory,
+          jenis: jenis,
+          satuan: satuan,
+          vol: vol || "",
+          harga_material: material || "",
+          harga_upah: upah || "",
+        });
+      }
+    }
+
+    return res.status(200).json(output);
   } catch (e) {
-    console.error("Gagal load template RAB:", e);
-    res.status(500).json({ message: "Gagal load template RAB" });
+    console.error("RAB Template Error:", e);
+    return res.status(200).json([]);
   }
 });
 
