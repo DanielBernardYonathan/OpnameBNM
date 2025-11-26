@@ -759,6 +759,105 @@ const withLingkup = lk ? base + `&lingkup=${encodeURIComponent(lk)}` : null;
           </table>
         </div>
 
+        <div style={{ marginTop: "30px" }}>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            {showAddForm ? "Tutup" : "+ Tambah Pekerjaan"}
+          </button>
+        </div>
+
+        {showAddForm && (
+          <div
+            style={{
+              marginTop: "20px",
+              padding: "16px",
+              border: "1px solid #ddd",
+              borderRadius: "10px",
+              background: "#f9f9f9"
+            }}
+          >
+            <h4 style={{ marginBottom: "12px", color: "var(--alfamart-red)" }}>
+              Tambah Pekerjaan Baru
+            </h4>
+
+            {/* KATEGORI */}
+            <select
+              className="form-select"
+              value={newKategori}
+              onChange={(e) => {
+                setNewKategori(e.target.value);
+                setNewJenis("");
+              }}
+              style={{ marginBottom: "10px" }}
+            >
+              <option value="">-- Pilih Kategori --</option>
+              {templateItems
+                .map((i) => i.kategori)
+                .filter((v, i, a) => a.indexOf(v) === i)
+                .map((kat) => (
+                  <option key={kat} value={kat}>
+                    {kat}
+                  </option>
+                ))}
+            </select>
+
+            {/* JENIS PEKERJAAN */}
+            <select
+              className="form-select"
+              value={newJenis}
+              onChange={(e) => {
+                const value = e.target.value;
+                setNewJenis(value);
+
+                const row = templateItems.find((i) => i.jenis_pekerjaan === value);
+                if (row) {
+                  setNewSatuan(row.satuan);
+                  setNewHargaMaterial(row.harga_material);
+                  setNewHargaUpah(row.harga_upah);
+                }
+              }}
+              style={{ marginBottom: "10px" }}
+            >
+              <option value="">-- Pilih Jenis Pekerjaan --</option>
+              {templateItems
+                .filter((i) => i.kategori === newKategori)
+                .map((i) => (
+                  <option key={i.jenis_pekerjaan} value={i.jenis_pekerjaan}>
+                    {i.jenis_pekerjaan}
+                  </option>
+                ))}
+            </select>
+
+            {/* SAAT PILIH JENIS → TAMPILKAN DETAIL */}
+            {newJenis && (
+              <>
+                <div>Satuan: <strong>{newSatuan}</strong></div>
+                <div>Harga Material: <strong>{formatRupiah(newHargaMaterial)}</strong></div>
+                <div>Harga Upah: <strong>{formatRupiah(newHargaUpah)}</strong></div>
+
+                <input
+                  type="number"
+                  className="form-input"
+                  placeholder="Volume RAB"
+                  value={newVolRab}
+                  onChange={(e) => setNewVolRab(e.target.value)}
+                  style={{ marginTop: "10px", width: "200px" }}
+                />
+
+                <button
+                  className="btn btn-success"
+                  style={{ marginTop: "15px" }}
+                  onClick={handleAddNewWork}
+                >
+                  Tambahkan ke Daftar
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {/* PERBAIKAN: Tambahkan ringkasan total di bawah tabel */}
         <div
           style={{
@@ -860,107 +959,6 @@ const withLingkup = lk ? base + `&lingkup=${encodeURIComponent(lk)}` : null;
             </strong>
           </div>
         </div>
-
-        <div style={{ marginTop: "30px" }}>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            {showAddForm ? "Tutup" : "+ Tambah Pekerjaan"}
-          </button>
-        </div>
-
-        {showAddForm && (
-  <div
-    style={{
-      marginTop: "20px",
-      padding: "16px",
-      border: "1px solid #ddd",
-      borderRadius: "10px",
-      background: "#f9f9f9"
-    }}
-  >
-    <h4 style={{ marginBottom: "12px", color: "var(--alfamart-red)" }}>
-      Tambah Pekerjaan Baru
-    </h4>
-
-    {/* KATEGORI */}
-    <select
-      className="form-select"
-      value={newKategori}
-      onChange={(e) => {
-        setNewKategori(e.target.value);
-        setNewJenis("");
-      }}
-      style={{ marginBottom: "10px" }}
-    >
-      <option value="">-- Pilih Kategori --</option>
-      {templateItems
-        .map((i) => i.kategori)
-        .filter((v, i, a) => a.indexOf(v) === i)
-        .map((kat) => (
-          <option key={kat} value={kat}>
-            {kat}
-          </option>
-        ))}
-    </select>
-
-    {/* JENIS PEKERJAAN */}
-    <select
-      className="form-select"
-      value={newJenis}
-      onChange={(e) => {
-        const value = e.target.value;
-        setNewJenis(value);
-
-        const row = templateItems.find((i) => i.jenis_pekerjaan === value);
-        if (row) {
-          setNewSatuan(row.satuan);
-          setNewHargaMaterial(row.harga_material);
-          setNewHargaUpah(row.harga_upah);
-        }
-      }}
-      style={{ marginBottom: "10px" }}
-    >
-      <option value="">-- Pilih Jenis Pekerjaan --</option>
-      {templateItems
-        .filter((i) => i.kategori === newKategori)
-        .map((i) => (
-          <option key={i.jenis_pekerjaan} value={i.jenis_pekerjaan}>
-            {i.jenis_pekerjaan}
-          </option>
-        ))}
-    </select>
-
-    {/* SAAT PILIH JENIS → TAMPILKAN DETAIL */}
-    {newJenis && (
-      <>
-        <div>Satuan: <strong>{newSatuan}</strong></div>
-        <div>Harga Material: <strong>{formatRupiah(newHargaMaterial)}</strong></div>
-        <div>Harga Upah: <strong>{formatRupiah(newHargaUpah)}</strong></div>
-
-        <input
-          type="number"
-          className="form-input"
-          placeholder="Volume RAB"
-          value={newVolRab}
-          onChange={(e) => setNewVolRab(e.target.value)}
-          style={{ marginTop: "10px", width: "200px" }}
-        />
-
-        <button
-          className="btn btn-success"
-          style={{ marginTop: "15px" }}
-          onClick={handleAddNewWork}
-        >
-          Tambahkan ke Daftar
-        </button>
-      </>
-    )}
-  </div>
-)}
-
-
       </div>
     </div>
   );
